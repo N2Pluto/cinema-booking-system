@@ -7,11 +7,11 @@ import (
 )
 
 type ListLogsResult struct {
-	Data       []*entity.AuditLog
-	Total      int64
-	Page       int
-	Limit      int
-	TotalPages int
+	Data       []*entity.AuditLog `json:"data"`
+	Total      int64              `json:"total"`
+	Page       int                `json:"page"`
+	Limit      int                `json:"limit"`
+	TotalPages int                `json:"total_pages"`
 }
 
 type AuditLogUseCase interface {
