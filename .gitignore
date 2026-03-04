@@ -1,0 +1,28 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Secrets — ห้าม commit
+.env
+*.env
+!.env.example
+
+# Go
+backend/tmp/
+backend/*.exe
+backend/*.test
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+
+# Editor
+.vscode/
+.idea/
+*.suo
+*.sw?
+
+# Trunk (local tool config)
+.trunk/
