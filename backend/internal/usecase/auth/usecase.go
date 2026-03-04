@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/n2pluto/cinema-booking-system/internal/domain/entity"
 	"github.com/n2pluto/cinema-booking-system/internal/domain/repository"
@@ -49,21 +51,38 @@ func (uc *UseCase) HandleCallback(ctx context.Context, code string) (*domainusec
 		return nil, fmt.Errorf("fetch google user: %w", err)
 	}
 
+	role := resolveRole(googleUser.Email)
+
 	user, err := uc.userRepo.Upsert(ctx, &entity.User{
 		GoogleID:    googleUser.ID,
 		Email:       googleUser.Email,
 		DisplayName: googleUser.Name,
+		Role:        role,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("upsert user: %w", err)
 	}
 
-	jwtToken, err := jwtpkg.Generate(user.ID.Hex(), user.Email, string(user.Role))
+	jwtToken, err := jwtpkg.Generate(user.ID.Hex(), user.Email, string(user.Role), user.DisplayName)
 	if err != nil {
 		return nil, fmt.Errorf("generate jwt: %w", err)
 	}
 
 	return &domainusecase.AuthResult{Token: jwtToken, User: user}, nil
+}
+
+// resolveRole returns RoleAdmin if email is in the ADMIN_EMAILS env var, else RoleUser.
+func resolveRole(email string) entity.UserRole {
+	adminEmails := os.Getenv("ADMIN_EMAILS")
+	if adminEmails == "" {
+		return entity.RoleUser
+	}
+	for _, e := range strings.Split(adminEmails, ",") {
+		if strings.EqualFold(strings.TrimSpace(e), email) {
+			return entity.RoleAdmin
+		}
+	}
+	return entity.RoleUser
 }
 
 type googleUserInfo struct {

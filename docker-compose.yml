@@ -30,6 +30,7 @@ services:
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL}
       - FRONTEND_URL=${FRONTEND_URL}
+      - ADMIN_EMAILS=${ADMIN_EMAILS}
 
   # ─── MongoDB ─────────────────────────────────────────────────────────────────
   mongodb:

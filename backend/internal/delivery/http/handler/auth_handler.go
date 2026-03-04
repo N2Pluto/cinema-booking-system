@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	domainusecase "github.com/n2pluto/cinema-booking-system/internal/domain/usecase"
@@ -71,12 +72,15 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	c.Redirect(http.StatusTemporaryRedirect, frontendURL+"/auth/callback?token="+result.Token)
 }
 
-// GET /auth/me — ต้องแนบ JWT
+// GET /api/me — ต้องแนบ JWT
 func (h *AuthHandler) Me(c *gin.Context) {
+	role := c.GetString("role")
 	c.JSON(http.StatusOK, gin.H{
-		"user_id": c.GetString("user_id"),
-		"email":   c.GetString("email"),
-		"role":    c.GetString("role"),
+		"user_id":      c.GetString("user_id"),
+		"email":        c.GetString("email"),
+		"display_name": c.GetString("display_name"),
+		"role":         role,
+		"is_admin":     role == "ADMIN",
 	})
 }
 
@@ -88,7 +92,8 @@ func generateState() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
-// isSecure returns true เมื่อ env = production (เพื่อ Secure cookie flag)
+// isSecure returns true when the callback URL uses HTTPS.
+// Avoids broken Secure-cookie behaviour when running on HTTP localhost.
 func isSecure() bool {
-	return os.Getenv("APP_ENV") == "production"
+	return strings.HasPrefix(os.Getenv("GOOGLE_CALLBACK_URL"), "https://")
 }
