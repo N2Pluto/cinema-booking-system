@@ -21,8 +21,15 @@ services:
       mongodb:
         condition: service_healthy
     environment:
+      - GIN_MODE=release
+      - APP_ENV=production
       - MONGO_URI=${MONGO_URI}
       - MONGO_DB=${MONGO_DB}
+      - JWT_SECRET=${JWT_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL}
+      - FRONTEND_URL=${FRONTEND_URL}
 
   # ─── MongoDB ─────────────────────────────────────────────────────────────────
   mongodb:
