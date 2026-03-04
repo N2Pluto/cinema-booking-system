@@ -1,6 +1,19 @@
 services:
+  # ─── Frontend: Vue 3 + Vite (served by nginx) ────────────────────────────────
+  frontend:
+    container_name: frontend_container
+    build:
+      context: ./frontend
+      args:
+        - VITE_API_URL=http://localhost:8080
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
   # ─── Backend: Go API Server ──────────────────────────────────────────────────
-  app:
+  backend:
+    container_name: backend_container
     build: ./backend
     ports:
       - "8080:8080"
@@ -13,6 +26,7 @@ services:
 
   # ─── MongoDB ─────────────────────────────────────────────────────────────────
   mongodb:
+    container_name: mongodb_container
     image: mongo:7
     ports:
       - "27017:27017"
