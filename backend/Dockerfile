@@ -14,7 +14,7 @@ COPY . .
 
 # Build: strip debug symbols + disable CGO for static binary
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -ldflags="-s -w" -o server .
+    go build -ldflags="-s -w" -o server ./cmd/api
 
 # ─── Stage 2: Production ─────────────────────────────────────────────────────
 FROM alpine:3.21
