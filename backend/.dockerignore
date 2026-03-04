@@ -1,0 +1,23 @@
+# Git
+.git
+.gitignore
+
+# Dev tools
+.vscode
+.idea
+*.swp
+*.swo
+
+# Test files
+*_test.go
+testdata/
+
+# Local env
+.env
+.env.*
+
+# Build output
+server
+
+# Docs
+*.md
