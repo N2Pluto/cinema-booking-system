@@ -88,5 +88,6 @@ func (ro *Router) Setup(r *gin.Engine) {
 		admin.GET("/cinema", ro.cinemaHandler.List)
 		admin.POST("/showtimes", ro.cinemaHandler.CreateShowtime)
 		admin.GET("/audit-logs", ro.auditLogHandler.List)
+		admin.GET("/bookings", ro.bookingHandler.ListAll)
 	}
 }

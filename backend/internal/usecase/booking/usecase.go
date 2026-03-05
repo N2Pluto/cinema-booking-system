@@ -260,6 +260,17 @@ func (uc *UseCase) GetMyBookings(ctx context.Context, userID string) ([]*entity.
 	return uc.bookingRepo.FindByUserID(ctx, userID)
 }
 
+// ListBookings returns all bookings with optional filters for admin use.
+func (uc *UseCase) ListBookings(ctx context.Context, in domainusecase.AdminListBookingsInput) (*repository.AdminBookingResult, error) {
+	return uc.bookingRepo.FindAll(ctx, repository.AdminBookingFilter{
+		Movie:  in.Movie,
+		Date:   in.Date,
+		Status: in.Status,
+		Page:   in.Page,
+		Limit:  in.Limit,
+	})
+}
+
 // broadcastSeats fetches the latest cinema and pushes its seat list to all WS clients.
 func (uc *UseCase) broadcastSeats(ctx context.Context, cinemaID string) {
 	cinema, err := uc.cinemaRepo.FindByID(ctx, cinemaID)

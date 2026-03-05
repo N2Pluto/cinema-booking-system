@@ -12,7 +12,7 @@
 | HTTP Framework | Gin v1.12 | REST API |
 | Frontend | Vue 3 + Vite | TypeScript, Composition API |
 | Database | MongoDB 7 | Embedded seat document |
-| Cache / Lock | Redis 7 | Distributed Lock + Pub-Sub |
+| Cache / Lock | Redis 7 | ACL Auth + Distributed Lock + Pub-Sub |
 | Real-time | WebSocket (gorilla/websocket) | Room-based Hub |
 | Message Queue | Redis Pub-Sub | Async Audit Logging |
 | Auth | Google OAuth 2.0 + JWT (HS256) | Role: USER / ADMIN |
@@ -27,36 +27,40 @@ cinema-booking-system/
 ├── docker-compose.yml
 ├── .env.example
 ├── README.md
+├── redis/
+│   └── entrypoint.sh        # Generate ACL file จาก env vars ตอน startup
+├── mongo-init/
+│   └── 01-seed.js           # Seed ข้อมูลตัวอย่าง (รันอัตโนมัติตอน fresh volume)
 ├── backend/
 │   ├── Dockerfile
 │   ├── go.mod / go.sum
 │   ├── cmd/
-│   │   ├── api/main.go          # Entry point — wire ทุก dependency
-│   │   └── seed/main.go         # Seed ข้อมูลตัวอย่าง
+│   │   ├── api/main.go      # Entry point — wire ทุก dependency + run migrations
+│   │   └── seed/main.go     # Seed ข้อมูลตัวอย่าง
 │   ├── internal/
-│   │   ├── delivery/http/       # Handlers, Middleware, Router, WebSocket Hub
+│   │   ├── delivery/http/   # Handlers, Middleware, Router, WebSocket Hub
 │   │   ├── domain/
-│   │   │   ├── entity/          # Structs + Enums (User, Cinema, Booking, AuditLog)
-│   │   │   ├── repository/      # Interfaces (CinemaRepo, SeatLocker, EventPublisher ...)
-│   │   │   └── usecase/         # Interfaces (BookingUseCase, AuthUseCase ...)
+│   │   │   ├── entity/      # Structs + Enums (User, Cinema, Booking, AuditLog)
+│   │   │   ├── repository/  # Interfaces (CinemaRepo, SeatLocker, EventPublisher ...)
+│   │   │   └── usecase/     # Interfaces (BookingUseCase, AuthUseCase ...)
 │   │   ├── repository/
-│   │   │   ├── mongodb/         # MongoDB implementations
-│   │   │   └── redis/           # Redis implementations (SeatLocker, EventPublisher, AuditConsumer)
-│   │   └── usecase/             # Concrete use case implementations
+│   │   │   ├── mongodb/     # MongoDB implementations
+│   │   │   └── redis/       # Redis implementations (SeatLocker, EventPublisher, AuditConsumer)
+│   │   └── usecase/         # Concrete use case implementations
 │   └── pkg/
-│       ├── database/            # MongoDB connection helper
-│       ├── jwt/                 # JWT generate + parse
-│       ├── redis/               # Redis client helper
-│       └── redislock/           # Distributed Lock (SET NX EX + Lua release script)
+│       ├── database/        # MongoDB connection + Migrate() (index setup)
+│       ├── jwt/             # JWT generate + parse
+│       ├── redis/           # Redis client helper
+│       └── redislock/       # Distributed Lock (SET NX EX + Lua release script)
 └── frontend/
     ├── Dockerfile
     ├── nginx.conf
     └── src/
-        ├── views/               # LoginView, HomeView, CinemaDetailView, BookingsView
-        │   └── admin/           # AdminCinemasView, AdminAuditLogsView, AdminCreateShowtimeView
-        ├── components/          # CinemaCard, SeatGrid, SeatCell, AppNavbar ...
-        ├── composables/         # useAuth, useBooking, useCinemas
-        └── router/              # Vue Router + auth guards
+        ├── views/           # LoginView, HomeView, CinemaDetailView, BookingsView
+        │   └── admin/       # AdminBookingsView, AdminCinemasView, AdminAuditLogsView, AdminCreateShowtimeView
+        ├── components/      # CinemaCard, SeatGrid, SeatCell, AppNavbar ...
+        ├── composables/     # useAuth, useBooking, useCinemas
+        └── router/          # Vue Router + auth guards
 ```
 
 ---
@@ -161,7 +165,7 @@ User เลือกที่นั่ง
 | start_time | timestamp | |
 | end_time | timestamp | |
 | price | int | ราคาพื้นฐาน |
-| seats | []Seat | embedded — seat_no, status, price, user_id |
+| seats | []Seat | embedded — seat_no (string), status, price, user_id |
 | created_at | timestamp | |
 
 **Seat status:** `AVAILABLE` → `LOCKED` → `BOOKED` (หรือกลับไป `AVAILABLE` เมื่อ timeout)
@@ -173,7 +177,7 @@ User เลือกที่นั่ง
 | user_id | ObjectID | ref → users |
 | cinema_id | ObjectID | ref → cinemas |
 | seat_numbers | []string | |
-| total_amount | decimal | |
+| total_amount | float64 | |
 | status | PENDING / SUCCESS / TIMEOUT / CANCELLED | |
 | created_at | timestamp | |
 
@@ -181,12 +185,30 @@ User เลือกที่นั่ง
 | Field | Type | หมายเหตุ |
 |---|---|---|
 | id | ObjectID | PK |
-| event_type | string | SEAT_LOCKED, BOOKING_SUCCESS, TIMEOUT, ... |
+| event_type | string | BOOKING_SUCCESS, TIMEOUT, BOOKING_CANCELLED, SEAT_LOCKED, SEAT_RELEASED |
 | user_id | ObjectID | ref → users |
 | cinema_id | ObjectID | ref → cinemas |
 | details | string | |
 | payload | json | |
 | timestamp | timestamp | |
+
+---
+
+## MongoDB Indexes (Auto-created on startup)
+
+`pkg/database/Migrate()` สร้าง indexes ทุกครั้งที่ server start (idempotent — ปลอดภัยถ้ามีอยู่แล้ว)
+
+| Collection | Index | หมายเหตุ |
+|---|---|---|
+| `users` | `google_id` | unique + sparse |
+| `users` | `email` | unique |
+| `cinemas` | `start_time` | date-range filter |
+| `bookings` | `user_id` | query |
+| `bookings` | `cinema_id` | query |
+| `bookings` | `status + created_at` | compound — timeout ticker |
+| `audit_logs` | `timestamp` (desc) | sort |
+| `audit_logs` | `user_id` | query |
+| `audit_logs` | `cinema_id` | query |
 
 ---
 
@@ -208,6 +230,7 @@ User เลือกที่นั่ง
 | GET | `/api/seats/:cinemaId` | สถานะที่นั่งทั้งหมดของรอบนั้น |
 | POST | `/api/booking/lock` | ล็อกที่นั่ง (Redis Lock + PENDING booking) |
 | POST | `/api/booking/confirm` | ยืนยันการจอง (BOOKED) |
+| POST | `/api/booking/cancel` | ยกเลิกการจอง |
 | GET | `/api/booking/me` | รายการจองของตัวเอง |
 
 ### Admin (ต้องมี JWT + role ADMIN)
@@ -215,7 +238,17 @@ User เลือกที่นั่ง
 |---|---|---|
 | GET | `/api/admin/cinema` | รายการรอบฉายทั้งหมด |
 | POST | `/api/admin/showtimes` | สร้างรอบฉายใหม่ |
+| GET | `/api/admin/bookings` | รายการจองทั้งหมด (filter by movie, date, status) |
 | GET | `/api/admin/audit-logs` | ดู Audit Logs |
+
+#### Query Parameters — `GET /api/admin/bookings`
+| Parameter | ตัวอย่าง | คำอธิบาย |
+|---|---|---|
+| `movie` | `Avengers` | ค้นหาชื่อหนัง (case-insensitive, partial match) |
+| `date` | `2026-03-05` | กรองตามวันที่จอง (YYYY-MM-DD) |
+| `status` | `SUCCESS` | กรองตามสถานะ (PENDING / SUCCESS / TIMEOUT / CANCELLED) |
+| `page` | `1` | หน้าที่ต้องการ (default: 1) |
+| `limit` | `20` | จำนวนรายการต่อหน้า (default: 20) |
 
 ---
 
@@ -227,7 +260,9 @@ User เลือกที่นั่ง
 | `MONGO_ROOT_PASSWORD` | `rootpassword` | MongoDB root password |
 | `MONGO_DB` | `cinema_booking` | ชื่อ database |
 | `MONGO_URI` | `mongodb://root:pass@mongodb:27017/...` | MongoDB connection URI |
-| `REDIS_URL` | `redis://redis:6379` | Redis connection URL |
+| `REDIS_USERNAME` | `cinema_user` | Redis ACL username |
+| `REDIS_PASSWORD` | `<strong-password>` | Redis ACL password |
+| `REDIS_URL` | `redis://cinema_user:pass@redis:6379` | Redis connection URL (รวม credentials) |
 | `JWT_SECRET` | `<random 32+ chars>` | HS256 signing key |
 | `GOOGLE_CLIENT_ID` | `xxx.apps.googleusercontent.com` | Google OAuth Client ID |
 | `GOOGLE_CLIENT_SECRET` | `GOCSPX-xxx` | Google OAuth Client Secret |
@@ -244,11 +279,12 @@ User เลือกที่นั่ง
 ### Prerequisites
 
 - Docker Desktop
-- ไฟล์ `.env` (copy จาก `.env.example` แล้วกรอก Google OAuth credentials)
+- ไฟล์ `.env` (copy จาก `.env.example` แล้วกรอก credentials)
 
 ```bash
 cp .env.example .env
-# แก้ไข GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, ADMIN_EMAILS, JWT_SECRET
+# แก้ไข: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, ADMIN_EMAILS, JWT_SECRET
+# แก้ไข: REDIS_USERNAME, REDIS_PASSWORD (และ REDIS_URL ให้ตรงกัน)
 ```
 
 ### รันทั้งระบบ
@@ -273,7 +309,7 @@ MONGO_DB=cinema_booking \
 go run cmd/seed/main.go
 ```
 
-สร้าง: `users` (3 คน), `cinemas` (2 รอบ), `bookings` (1 รายการ)
+สร้าง: `users` (3 คน), `cinemas` (6 รอบ), `bookings` (1 รายการ)
 
 ---
 
@@ -284,12 +320,27 @@ go run cmd/seed/main.go
 - **Rate limiting** — per-IP token bucket (20 req/s, burst 50)
 - **Security headers** — X-Frame-Options, X-Content-Type-Options, Referrer-Policy
 - **CORS** — จำกัดเฉพาะ FRONTEND_URL
+- **Redis ACL** — ปิด `default` user, ใช้ named user พร้อม password แทน
 - **No hardcode** — ทุก secret ใช้ environment variables
 
 ---
 
-## MongoDB Compass
+## เชื่อมต่อ Database Tools
 
+### MongoDB Compass
 ```
-mongodb://root:rootpassword@localhost:27017/?authSource=admin
+mongodb://root:<MONGO_ROOT_PASSWORD>@localhost:27017/?authSource=admin
+```
+
+### Redis Insight
+| Field | ค่า |
+|---|---|
+| Host | `localhost` |
+| Port | `6379` |
+| Username | ค่าจาก `REDIS_USERNAME` ใน `.env` |
+| Password | ค่าจาก `REDIS_PASSWORD` ใน `.env` |
+
+### Redis CLI
+```bash
+docker exec -it redis_container redis-cli -u redis://<REDIS_USERNAME>:<REDIS_PASSWORD>@localhost:6379
 ```

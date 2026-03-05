@@ -35,6 +35,10 @@ func main() {
 	}
 	defer mongodb.Disconnect()
 
+	if err := mongodb.Migrate(ctx); err != nil {
+		log.Fatalf("MongoDB migration: %v", err)
+	}
+
 	// ─── Infrastructure: Redis ────────────────────────────────────────────────
 	redisClient, err := pkgredis.New()
 	if err != nil {

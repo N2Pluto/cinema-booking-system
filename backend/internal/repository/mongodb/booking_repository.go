@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/n2pluto/cinema-booking-system/internal/domain/entity"
@@ -83,4 +84,107 @@ func (r *bookingRepository) FindExpiredPending(ctx context.Context, before time.
 		return nil, err
 	}
 	return bookings, nil
+}
+
+func (r *bookingRepository) FindAll(ctx context.Context, f repository.AdminBookingFilter) (*repository.AdminBookingResult, error) {
+	page := f.Page
+	if page < 1 {
+		page = 1
+	}
+	limit := f.Limit
+	if limit < 1 {
+		limit = 20
+	}
+
+	// ── Build aggregation pipeline ─────────────────────────────────────────
+	pipeline := mongo.Pipeline{
+		// Join cinema to get movie info
+		{{Key: "$lookup", Value: bson.D{
+			{Key: "from", Value: "cinemas"},
+			{Key: "localField", Value: "cinema_id"},
+			{Key: "foreignField", Value: "_id"},
+			{Key: "as", Value: "cinema"},
+		}}},
+		{{Key: "$unwind", Value: bson.D{
+			{Key: "path", Value: "$cinema"},
+			{Key: "preserveNullAndEmptyArrays", Value: true},
+		}}},
+		// Promote cinema fields to top level
+		{{Key: "$addFields", Value: bson.D{
+			{Key: "movie_name", Value: "$cinema.movie_name"},
+			{Key: "theater_no", Value: "$cinema.theater_no"},
+			{Key: "start_time", Value: "$cinema.start_time"},
+			{Key: "end_time", Value: "$cinema.end_time"},
+		}}},
+	}
+
+	// ── Dynamic $match stage ───────────────────────────────────────────────
+	match := bson.D{}
+	if f.Status != "" {
+		match = append(match, bson.E{Key: "status", Value: f.Status})
+	}
+	if f.Date != "" {
+		t, err := time.Parse("2006-01-02", f.Date)
+		if err == nil {
+			match = append(match, bson.E{Key: "created_at", Value: bson.D{
+				{Key: "$gte", Value: t},
+				{Key: "$lt", Value: t.Add(24 * time.Hour)},
+			}})
+		}
+	}
+	if f.Movie != "" {
+		match = append(match, bson.E{Key: "movie_name", Value: bson.D{
+			{Key: "$regex", Value: f.Movie},
+			{Key: "$options", Value: "i"},
+		}})
+	}
+	if len(match) > 0 {
+		pipeline = append(pipeline, bson.D{{Key: "$match", Value: match}})
+	}
+
+	// ── Count total (clone pipeline before adding sort/skip/limit) ─────────
+	countPipeline := append(pipeline, bson.D{{Key: "$count", Value: "total"}})
+	countCursor, err := r.col.Aggregate(ctx, countPipeline)
+	if err != nil {
+		return nil, fmt.Errorf("count bookings: %w", err)
+	}
+	defer countCursor.Close(ctx)
+	var countResult []struct {
+		Total int64 `bson:"total"`
+	}
+	_ = countCursor.All(ctx, &countResult)
+	var total int64
+	if len(countResult) > 0 {
+		total = countResult[0].Total
+	}
+
+	// ── Data with sort + pagination ────────────────────────────────────────
+	pipeline = append(pipeline,
+		bson.D{{Key: "$sort", Value: bson.D{{Key: "created_at", Value: -1}}}},
+		bson.D{{Key: "$skip", Value: int64((page - 1) * limit)}},
+		bson.D{{Key: "$limit", Value: int64(limit)}},
+	)
+	cursor, err := r.col.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, fmt.Errorf("find bookings: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	data := make([]*repository.BookingWithCinema, 0)
+	if err := cursor.All(ctx, &data); err != nil {
+		return nil, err
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(limit)))
+	if totalPages < 1 {
+		totalPages = 1
+	}
+
+	return &repository.AdminBookingResult{
+		Data:       data,
+		Total:      total,
+		Page:       page,
+		Limit:      limit,
+		TotalPages: totalPages,
+	}, nil
 }
