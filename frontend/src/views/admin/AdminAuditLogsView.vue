@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import AppNavbar from '@/components/layout/AppNavbar.vue'
 import Pagination from '@/components/ui/Pagination.vue'
+
+const router = useRouter()
 
 interface AuditLog {
   id: string
@@ -71,11 +74,12 @@ function formatDate(iso: string) {
     <AppNavbar />
 
     <main class="max-w-5xl mx-auto px-6 py-10">
+      <button @click="router.back()" class="text-sm text-[#606882] hover:text-white mb-6 flex items-center gap-1 transition-colors">
+        ← กลับ
+      </button>
+
       <div class="flex items-center justify-between mb-8">
         <h2 class="text-xl font-bold">Audit Logs</h2>
-        <router-link to="/admin/cinemas" class="text-sm text-[#a8b2d8] hover:text-white transition-colors">
-          ← รอบหนัง
-        </router-link>
       </div>
 
       <div v-if="loading && result.data.length === 0" class="text-center py-20 text-[#606882]">กำลังโหลด...</div>

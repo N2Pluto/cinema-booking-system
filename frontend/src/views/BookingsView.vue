@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import { useBooking, type Booking } from '@/composables/useBooking'
 import AppNavbar from '@/components/layout/AppNavbar.vue'
 
+const router = useRouter()
 const { fetchMe } = useAuth()
 const { loading, fetchMyBookings } = useBooking()
 const bookings = ref<Booking[]>([])
@@ -38,6 +40,10 @@ function formatDate(iso: string) {
     <AppNavbar />
 
     <main class="max-w-3xl mx-auto px-6 py-10">
+      <button @click="router.back()" class="text-sm text-[#606882] hover:text-white mb-6 flex items-center gap-1 transition-colors">
+        ← กลับ
+      </button>
+
       <h2 class="text-xl font-bold mb-6">การจองของฉัน</h2>
 
       <div v-if="loading" class="text-center py-20 text-[#606882]">กำลังโหลด...</div>

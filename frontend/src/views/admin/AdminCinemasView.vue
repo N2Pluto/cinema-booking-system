@@ -49,6 +49,10 @@ function availableCount(c: Cinema) {
     <AppNavbar />
 
     <main class="max-w-5xl mx-auto px-6 py-10">
+      <button @click="router.back()" class="text-sm text-[#606882] hover:text-white mb-6 flex items-center gap-1 transition-colors">
+        ← กลับ
+      </button>
+
       <div class="flex items-center justify-between mb-8">
         <div>
           <h2 class="text-xl font-bold">จัดการรอบหนัง</h2>

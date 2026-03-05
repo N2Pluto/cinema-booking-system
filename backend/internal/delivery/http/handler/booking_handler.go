@@ -58,6 +58,24 @@ func (h *BookingHandler) Confirm(c *gin.Context) {
 	c.JSON(http.StatusOK, booking)
 }
 
+// POST /api/booking/cancel
+func (h *BookingHandler) Cancel(c *gin.Context) {
+	var body struct {
+		BookingID string `json:"booking_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID := c.GetString("user_id")
+	if err := h.bookingUC.CancelBooking(c.Request.Context(), body.BookingID, userID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "booking cancelled"})
+}
+
 // GET /api/booking/me
 func (h *BookingHandler) GetMine(c *gin.Context) {
 	userID := c.GetString("user_id")

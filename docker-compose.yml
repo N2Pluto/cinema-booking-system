@@ -1,4 +1,19 @@
 services:
+  # ─── Redis: Cache + Distributed Lock + Pub-Sub ────────────────────────────────
+  redis:
+    container_name: redis_container
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   # ─── Frontend: Vue 3 + Vite (served by nginx) ────────────────────────────────
   frontend:
     container_name: frontend_container
@@ -20,6 +35,8 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       - GIN_MODE=release
       - APP_ENV=production
@@ -31,6 +48,7 @@ services:
       - GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL}
       - FRONTEND_URL=${FRONTEND_URL}
       - ADMIN_EMAILS=${ADMIN_EMAILS}
+      - REDIS_URL=${REDIS_URL}
 
   # ─── MongoDB ─────────────────────────────────────────────────────────────────
   mongodb:
@@ -51,3 +69,4 @@ services:
 
 volumes:
   mongo-data:
+  redis-data:

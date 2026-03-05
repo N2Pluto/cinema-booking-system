@@ -5,11 +5,13 @@ const props = defineProps<{
   seat: Seat
   selected: boolean
   myUserId?: string
+  readonly?: boolean
 }>()
 
 const emit = defineEmits<{ (e: 'toggle', seatNo: string): void }>()
 
 function handleClick() {
+  if (props.readonly) return
   if (props.seat.status !== 'AVAILABLE' && !props.selected) return
   emit('toggle', props.seat.seat_no)
 }
@@ -18,7 +20,7 @@ function handleClick() {
 <template>
   <button
     :title="`${seat.seat_no} • ฿${seat.price}`"
-    :disabled="seat.status === 'BOOKED' || seat.status === 'LOCKED'"
+    :disabled="readonly || seat.status === 'BOOKED' || seat.status === 'LOCKED'"
     @click="handleClick"
     class="w-8 h-8 rounded-md text-xs font-semibold transition-all border"
     :class="{

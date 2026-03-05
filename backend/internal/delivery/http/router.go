@@ -55,7 +55,7 @@ func (ro *Router) Setup(r *gin.Engine) {
 	// ─── WebSocket (public route, auth via ?token query param) ───────────────
 	r.GET("/api/ws/seats/:cinemaId", ro.websocketHandler.HandleSeatUpdates)
 
-	// ─── User routes — USER หรือ ADMIN ───────────────────────────────────────
+	// ─── Authenticated routes — USER และ ADMIN ────────────────────────────────
 	api := r.Group("/api")
 	api.Use(middleware.JWTAuth())
 	api.Use(middleware.RequireRole(entity.RoleUser, entity.RoleAdmin))
@@ -64,14 +64,20 @@ func (ro *Router) Setup(r *gin.Engine) {
 		api.GET("/me", ro.authHandler.Me)
 		api.GET("/auth/me", ro.authHandler.Me)
 
-		// Cinema
+		// Cinema (read-only — ทั้ง USER และ ADMIN ดูได้)
 		api.GET("/cinema", ro.cinemaHandler.List)
 		api.GET("/seats/:cinemaId", ro.cinemaHandler.GetSeats)
+	}
 
-		// Booking
-		api.POST("/booking/lock", ro.bookingHandler.Lock)
-		api.POST("/booking/confirm", ro.bookingHandler.Confirm)
-		api.GET("/booking/me", ro.bookingHandler.GetMine)
+	// ─── Booking routes — เฉพาะ USER เท่านั้น (admin ไม่มีสิทธิ์จอง) ─────────
+	userOnly := r.Group("/api")
+	userOnly.Use(middleware.JWTAuth())
+	userOnly.Use(middleware.RequireRole(entity.RoleUser))
+	{
+		userOnly.POST("/booking/lock", ro.bookingHandler.Lock)
+		userOnly.POST("/booking/confirm", ro.bookingHandler.Confirm)
+		userOnly.POST("/booking/cancel", ro.bookingHandler.Cancel)
+		userOnly.GET("/booking/me", ro.bookingHandler.GetMine)
 	}
 
 	// ─── Admin routes — เฉพาะ ADMIN ──────────────────────────────────────────

@@ -7,6 +7,7 @@ const props = defineProps<{
   seats: Seat[]
   selectedSeats: string[]
   myUserId?: string
+  readonly?: boolean
 }>()
 
 const emit = defineEmits<{ (e: 'toggle', seatNo: string): void }>()
@@ -42,6 +43,7 @@ const rows = computed(() => {
             :seat="seat"
             :selected="selectedSeats.includes(seat.seat_no)"
             :my-user-id="myUserId"
+            :readonly="readonly"
             @toggle="emit('toggle', $event)"
           />
         </div>

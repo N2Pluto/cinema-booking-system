@@ -68,6 +68,31 @@ export function useBooking() {
     }
   }
 
+  async function cancelBooking(bookingId: string): Promise<boolean> {
+    loading.value = true
+    error.value = null
+    try {
+      const res = await fetch(`${API_URL()}/api/booking/cancel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token.value}`,
+        },
+        body: JSON.stringify({ booking_id: bookingId }),
+      })
+      if (!res.ok) {
+        const body = await res.json()
+        throw new Error(body.error || 'Cancel failed')
+      }
+      return true
+    } catch (e: any) {
+      error.value = e.message
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function fetchMyBookings(): Promise<Booking[]> {
     loading.value = true
     error.value = null
@@ -86,5 +111,5 @@ export function useBooking() {
     }
   }
 
-  return { loading, error, lockSeats, confirmBooking, fetchMyBookings }
+  return { loading, error, lockSeats, confirmBooking, cancelBooking, fetchMyBookings }
 }

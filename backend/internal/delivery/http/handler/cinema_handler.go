@@ -53,11 +53,7 @@ func (h *CinemaHandler) GetSeats(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"cinema_id":  cinema.ID.Hex(),
-		"movie_name": cinema.MovieName,
-		"seats":      cinema.Seats,
-	})
+	c.JSON(http.StatusOK, cinema)
 }
 
 // POST /api/admin/showtimes

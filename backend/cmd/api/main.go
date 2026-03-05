@@ -14,23 +14,33 @@ import (
 	"github.com/n2pluto/cinema-booking-system/internal/delivery/http/handler"
 	wsHub "github.com/n2pluto/cinema-booking-system/internal/delivery/http/ws"
 	mongorepo "github.com/n2pluto/cinema-booking-system/internal/repository/mongodb"
+	redisrepo "github.com/n2pluto/cinema-booking-system/internal/repository/redis"
 	auditlogusecase "github.com/n2pluto/cinema-booking-system/internal/usecase/audit_log"
 	"github.com/n2pluto/cinema-booking-system/internal/usecase/auth"
 	bookingusecase "github.com/n2pluto/cinema-booking-system/internal/usecase/booking"
 	cinemausecase "github.com/n2pluto/cinema-booking-system/internal/usecase/cinema"
 	"github.com/n2pluto/cinema-booking-system/pkg/database"
+	pkgredis "github.com/n2pluto/cinema-booking-system/pkg/redis"
+	"github.com/n2pluto/cinema-booking-system/pkg/redislock"
 )
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	// ─── Infrastructure ───────────────────────────────────────────────────────
+	// ─── Infrastructure: MongoDB ───────────────────────────────────────────────
 	mongodb, err := database.NewMongoDB()
 	if err != nil {
 		log.Fatalf("MongoDB: %v", err)
 	}
 	defer mongodb.Disconnect()
+
+	// ─── Infrastructure: Redis ────────────────────────────────────────────────
+	redisClient, err := pkgredis.New()
+	if err != nil {
+		log.Fatalf("Redis: %v", err)
+	}
+	defer redisClient.Close()
 
 	// ─── WebSocket Hub ────────────────────────────────────────────────────────
 	hub := wsHub.NewHub()
@@ -42,6 +52,18 @@ func main() {
 	bookingRepo := mongorepo.NewBookingRepository(mongodb.Collection("bookings"))
 	auditRepo := mongorepo.NewAuditLogRepository(mongodb.Collection("audit_logs"))
 
+	// Redis-backed repositories
+	locker := redislock.New(redisClient.Client)
+	seatLocker := redisrepo.NewSeatLocker(locker)
+	publisher := redisrepo.NewEventPublisher(redisClient.Client)
+
+	// ─── Message Queue: Audit Log Consumer (Redis Pub-Sub) ────────────────────
+	// The booking usecase publishes AuditLog events to Redis channel "audit:events".
+	// This consumer subscribes and writes them to MongoDB asynchronously,
+	// decoupling audit writes from the hot booking path.
+	auditConsumer := redisrepo.NewAuditConsumer(redisClient.Client, auditRepo)
+	auditConsumer.Start(ctx)
+
 	// ─── Use Cases ────────────────────────────────────────────────────────────
 	authUC := auth.NewUseCase(
 		userRepo,
@@ -50,7 +72,7 @@ func main() {
 		os.Getenv("GOOGLE_CALLBACK_URL"),
 	)
 	cinemaUC := cinemausecase.NewUseCase(cinemaRepo)
-	bookingUC := bookingusecase.NewUseCase(cinemaRepo, bookingRepo, auditRepo, hub)
+	bookingUC := bookingusecase.NewUseCase(cinemaRepo, bookingRepo, seatLocker, publisher, hub)
 	auditUC := auditlogusecase.NewUseCase(auditRepo)
 
 	// Start background seat-lock timeout ticker

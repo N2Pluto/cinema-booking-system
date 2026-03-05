@@ -15,5 +15,6 @@ type LockSeatsInput struct {
 type BookingUseCase interface {
 	LockSeats(ctx context.Context, in LockSeatsInput) (*entity.Booking, error)
 	ConfirmBooking(ctx context.Context, bookingID string, userID string) (*entity.Booking, error)
+	CancelBooking(ctx context.Context, bookingID string, userID string) error
 	GetMyBookings(ctx context.Context, userID string) ([]*entity.Booking, error)
 }
