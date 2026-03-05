@@ -12,9 +12,11 @@ const router = useRouter()
 const { fetchMe, user } = useAuth()
 const { loading, result, fetchCinemas } = useCinemas()
 const page = ref(1)
+const userReady = ref(false)
 
 onMounted(async () => {
   await fetchMe()
+  userReady.value = true
   await fetchCinemas({ page: page.value, limit: 12 })
 })
 
@@ -31,7 +33,7 @@ async function changePage(p: number) {
 
     <main class="max-w-[1100px] mx-auto px-6 py-10">
       <!-- Admin shortcut -->
-      <div v-if="user?.is_admin" class="mb-6 flex gap-3">
+      <div v-if="userReady && user?.is_admin" class="mb-6 flex gap-3">
         <router-link
           to="/admin/cinemas"
           class="px-4 py-2 text-sm font-medium bg-[#e94560]/10 text-[#e94560] border border-[#e94560]/30 rounded-lg hover:bg-[#e94560]/20 transition-colors"
@@ -44,9 +46,7 @@ async function changePage(p: number) {
         >
           Audit Logs
         </router-link>
-      </div>
-
-      <div class="flex items-center justify-between mb-6">
+      </div>      <div v-if="userReady && !user?.is_admin" class="flex items-center justify-between mb-6">
         <div>
           <h3 class="text-xl font-semibold mb-1">ภาพยนตร์ที่กำลังฉาย</h3>
           <p class="text-sm text-[#606882]">เลือกรอบที่ต้องการแล้วจองได้เลย</p>
@@ -59,33 +59,35 @@ async function changePage(p: number) {
         </router-link>
       </div>
 
-      <!-- Skeleton -->
-      <div v-if="loading" class="grid gap-5" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));">
-        <MovieCardSkeleton v-for="n in 12" :key="n" />
-      </div>
-
-      <!-- Cinema cards -->
-      <template v-else>
-        <div v-if="!result.data?.length" class="text-center py-20 text-[#606882]">
-          ยังไม่มีรอบหนัง
-        </div>
-        <div v-else class="grid gap-5 mb-8" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));">
-          <router-link
-            v-for="cinema in result.data"
-            :key="cinema.id"
-            :to="`/cinema/${cinema.id}`"
-          >
-            <CinemaCard :cinema="cinema" />
-          </router-link>
+      <!-- User only: cinema cards + pagination -->
+      <template v-if="userReady && !user?.is_admin">
+        <!-- Skeleton -->
+        <div v-if="loading" class="grid gap-5" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));">
+          <MovieCardSkeleton v-for="n in 12" :key="n" />
         </div>
 
-        <Pagination
-          :page="result.page"
-          :total-pages="result.total_pages"
-          :total="result.total"
-          :limit="result.limit"
-          @change="changePage"
-        />
+        <template v-else>
+          <div v-if="!result.data?.length" class="text-center py-20 text-[#606882]">
+            ยังไม่มีรอบหนัง
+          </div>
+          <div v-else class="grid gap-5 mb-8" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));">
+            <router-link
+              v-for="cinema in result.data"
+              :key="cinema.id"
+              :to="`/cinema/${cinema.id}`"
+            >
+              <CinemaCard :cinema="cinema" />
+            </router-link>
+          </div>
+
+          <Pagination
+            :page="result.page"
+            :total-pages="result.total_pages"
+            :total="result.total"
+            :limit="result.limit"
+            @change="changePage"
+          />
+        </template>
       </template>
     </main>
   </div>

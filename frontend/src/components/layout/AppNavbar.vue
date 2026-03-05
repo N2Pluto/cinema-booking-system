@@ -15,10 +15,14 @@ function handleLogout() {
 <template>
   <nav class="sticky top-0 z-10 flex items-center justify-between px-8 py-4 bg-white/[0.03] border-b border-white/[0.08] backdrop-blur-md">
     <!-- Brand -->
-    <div class="flex items-center gap-2.5 text-lg font-bold tracking-tight text-white">
+    <button
+      class="flex items-center gap-2.5 text-lg font-bold tracking-tight text-white hover:opacity-80 transition"
+      @click="router.push({ name: 'home' })"
+      style="outline: none; cursor: pointer;"
+    >
       <span class="w-2.5 h-2.5 rounded-full bg-[#e94560]"></span>
       Cinema Booking
-    </div>
+    </button>
 
     <!-- User info -->
     <div v-if="user" class="flex items-center gap-3">

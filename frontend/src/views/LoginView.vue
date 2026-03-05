@@ -44,8 +44,6 @@ function loginWithGoogle() {
         </svg>
         เข้าสู่ระบบด้วย Google
       </button>
-
-      <p class="mt-5 text-xs text-[#606882]">ระบบใช้ Google OAuth 2.0 — ปลอดภัย ไม่เก็บรหัสผ่าน</p>
     </div>
   </div>
 </template>
