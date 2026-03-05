@@ -11,7 +11,7 @@ const route = useRoute()
 const router = useRouter()
 const { token, user, fetchMe } = useAuth()
 const { fetchCinema } = useCinemas()
-const { loading: bookLoading, error: bookError, lockSeats, confirmBooking, cancelBooking } = useBooking()
+const { loading: bookLoading, error: bookError, lockSeats, confirmBooking, cancelBooking, fetchMyBookings } = useBooking()
 
 const cinema = ref<Cinema | null>(null)
 const seats = ref<Seat[]>([])
@@ -84,6 +84,7 @@ onMounted(async () => {
   await fetchMe()
   await loadCinema()
   connectWS()
+  await restorePendingBooking()
 })
 
 onUnmounted(() => {
@@ -125,19 +126,38 @@ function toggleSeat(seatNo: string) {
   else selectedSeats.value.push(seatNo)
 }
 
-function startCountdown() {
-  countdown.value = 300
+const LOCK_TTL_SEC = 300
+
+function startCountdown(remainingSeconds?: number) {
+  countdown.value = remainingSeconds ?? LOCK_TTL_SEC
   if (countdownTimer) clearInterval(countdownTimer)
   countdownTimer = setInterval(async () => {
     countdown.value--
     if (countdown.value <= 0) {
       clearInterval(countdownTimer!)
-      // Lock expired — backend ticker will release, just reset UI
       pendingBookingId.value = null
       selectedSeats.value = []
       step.value = 'select'
     }
   }, 1000)
+}
+
+/** หลังรีเฟรช: ถ้ามีการจอง PENDING ของรอบนี้อยู่ ให้กลับมาแสดงหน้า QR + countdown ที่เหลือ */
+async function restorePendingBooking() {
+  if (!user.value) return
+  const list = await fetchMyBookings()
+  const created = (b: { cinema_id: string; status: string; created_at: string }) =>
+    b.cinema_id === cinemaId && b.status === 'PENDING' ? new Date(b.created_at).getTime() : 0
+  const pending = list
+    .filter((b) => b.cinema_id === cinemaId && b.status === 'PENDING')
+    .sort((a, b) => created(b) - created(a))[0]
+  if (!pending) return
+  pendingBookingId.value = String(pending.id)
+  selectedSeats.value = [...(pending.seat_numbers || [])]
+  step.value = 'qr'
+  const elapsed = (Date.now() - new Date(pending.created_at).getTime()) / 1000
+  const remaining = Math.max(0, Math.floor(LOCK_TTL_SEC - elapsed))
+  startCountdown(remaining)
 }
 
 async function handleLock() {
@@ -161,12 +181,27 @@ async function handleConfirm() {
 
 async function handleCancel() {
   if (countdownTimer) clearInterval(countdownTimer)
-  if (pendingBookingId.value) {
-    await cancelBooking(pendingBookingId.value)
+  const bookingIdToCancel = pendingBookingId.value
+
+  if (bookingIdToCancel) {
+    const ok = await cancelBooking(bookingIdToCancel)
+    if (!ok) {
+      bookError.value = 'ยกเลิกไม่สำเร็จ กรุณาลองใหม่หรือรอปล่อยอัตโนมัติ 5 นาที'
+      return
+    }
   }
+
   pendingBookingId.value = null
   selectedSeats.value = []
+  if (!bookingIdToCancel) bookError.value = null
+
+  await loadCinema()
+}
+
+async function goBackToSelect() {
   step.value = 'select'
+  bookError.value = null
+  await loadCinema()
 }
 
 function formatDate(iso: string) {
@@ -233,7 +268,19 @@ function formatDate(iso: string) {
 
         <!-- ─── Step: QR payment ──────────────────────────────────────── -->
         <div v-else-if="step === 'qr'" class="max-w-sm mx-auto">
-          <!-- Payment card (white, like PromptPay screen) -->
+          <!-- หลังรีเซ็ต: ยังอยู่หน้า QR แสดงข้อความยกเลิก + ปุ่มกลับ (qr ต้องไม่หาย) -->
+          <div v-if="!pendingBookingId" class="bg-white rounded-2xl overflow-hidden shadow-xl shadow-black/40 p-8 text-center">
+            <p class="text-[#1a237e] font-semibold mb-2">ยกเลิกการจองแล้ว</p>
+            <p class="text-[#606882] text-sm mb-6">ที่นั่งถูกปล่อยแล้ว สามารถเลือกจองใหม่ได้</p>
+            <button
+              @click="goBackToSelect"
+              class="w-full py-3 rounded-xl bg-[#e94560] text-white font-semibold hover:bg-[#d63651] transition-colors text-sm"
+            >
+              เลือกที่นั่งใหม่
+            </button>
+          </div>
+          <!-- กำลังจองอยู่: แสดง QR + ปุ่มยกเลิก/ยืนยัน -->
+          <template v-else>
           <div class="bg-white rounded-2xl overflow-hidden shadow-xl shadow-black/40">
             <!-- Header bar -->
             <div class="bg-[#1a237e] px-5 py-3 flex items-center justify-between">
@@ -315,6 +362,7 @@ function formatDate(iso: string) {
               {{ bookLoading ? 'กำลังยืนยัน...' : '✓ ยืนยัน QR ชำระเงินแล้ว' }}
             </button>
           </div>
+          </template>
           <p v-if="bookError" class="mt-3 text-sm text-[#e94560] text-center">{{ bookError }}</p>
         </div>
 
