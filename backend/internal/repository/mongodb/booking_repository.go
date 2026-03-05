@@ -53,7 +53,7 @@ func (r *bookingRepository) FindByUserID(ctx context.Context, userID string) ([]
 		return nil, err
 	}
 	defer cursor.Close(ctx)
-	var bookings []*entity.Booking
+	bookings := make([]*entity.Booking, 0)
 	if err := cursor.All(ctx, &bookings); err != nil {
 		return nil, err
 	}
@@ -78,7 +78,7 @@ func (r *bookingRepository) FindExpiredPending(ctx context.Context, before time.
 		return nil, err
 	}
 	defer cursor.Close(ctx)
-	var bookings []*entity.Booking
+	bookings := make([]*entity.Booking, 0)
 	if err := cursor.All(ctx, &bookings); err != nil {
 		return nil, err
 	}

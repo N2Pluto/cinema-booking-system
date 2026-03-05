@@ -65,7 +65,7 @@ func (r *cinemaRepository) List(ctx context.Context, f repository.CinemaFilter) 
 	}
 	defer cursor.Close(ctx)
 
-	var cinemas []*entity.Cinema
+	cinemas := make([]*entity.Cinema, 0)
 	if err := cursor.All(ctx, &cinemas); err != nil {
 		return nil, 0, err
 	}

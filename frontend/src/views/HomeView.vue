@@ -66,7 +66,7 @@ async function changePage(p: number) {
 
       <!-- Cinema cards -->
       <template v-else>
-        <div v-if="result.data.length === 0" class="text-center py-20 text-[#606882]">
+        <div v-if="!result.data?.length" class="text-center py-20 text-[#606882]">
           ยังไม่มีรอบหนัง
         </div>
         <div v-else class="grid gap-5 mb-8" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));">

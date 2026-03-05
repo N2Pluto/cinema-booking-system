@@ -70,7 +70,7 @@ function availableCount(c: Cinema) {
         </div>
       </div>
 
-      <div v-if="loading && result.data.length === 0" class="text-center py-20 text-[#606882]">กำลังโหลด...</div>
+      <div v-if="loading && !result.data?.length" class="text-center py-20 text-[#606882]">กำลังโหลด...</div>
 
       <div v-else>
         <div class="bg-white/[0.03] border border-white/[0.08] rounded-2xl overflow-hidden mb-6">

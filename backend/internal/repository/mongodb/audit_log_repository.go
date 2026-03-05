@@ -55,7 +55,7 @@ func (r *auditLogRepository) List(ctx context.Context, f repository.AuditLogFilt
 	}
 	defer cursor.Close(ctx)
 
-	var logs []*entity.AuditLog
+	logs := make([]*entity.AuditLog, 0)
 	if err := cursor.All(ctx, &logs); err != nil {
 		return nil, 0, err
 	}
