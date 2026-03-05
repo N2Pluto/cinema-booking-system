@@ -15,7 +15,7 @@
           │        │         ├────────► [ Redis Pub-Sub ]
           │        │                      │
           │        │                      ▼
-          │        └────────► [ Redis (Cache + Distributed Lock) ]
+          │        └────────► [ Redis (Distributed Lock) ]
           │
           └────────────────► [ MongoDB (Primary Data Store) ]
 
@@ -383,7 +383,7 @@ go run cmd/seed/main.go
 ---
 
 
-## Optional Features (Extra Credit)
+## Optional Features
 
 - **Postman Collection**
   - มีไฟล์ collection พร้อมใช้งานที่ `postman/cinema-booking.postman_collection.json`
