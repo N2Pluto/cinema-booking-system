@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	domainusecase "github.com/n2pluto/cinema-booking-system/internal/domain/usecase"
@@ -85,4 +86,33 @@ func (h *BookingHandler) GetMine(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": bookings})
+}
+
+// GET /api/admin/bookings?movie=&date=YYYY-MM-DD&status=&page=&limit=
+func (h *BookingHandler) ListAll(c *gin.Context) {
+	page := 1
+	limit := 20
+	if p := c.Query("page"); p != "" {
+		if v, err := strconv.Atoi(p); err == nil && v > 0 {
+			page = v
+		}
+	}
+	if l := c.Query("limit"); l != "" {
+		if v, err := strconv.Atoi(l); err == nil && v > 0 {
+			limit = v
+		}
+	}
+
+	result, err := h.bookingUC.ListBookings(c.Request.Context(), domainusecase.AdminListBookingsInput{
+		Movie:  c.Query("movie"),
+		Date:   c.Query("date"),
+		Status: c.Query("status"),
+		Page:   page,
+		Limit:  limit,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, result)
 }

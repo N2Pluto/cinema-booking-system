@@ -26,6 +26,15 @@ type UseCase struct {
 	seatLocker  repository.SeatLocker
 	publisher   repository.EventPublisher
 	hub         *ws.Hub
+	notifier    NotificationService
+}
+
+// NotificationService abstracts sending notifications (email/Line/mock).
+// For this assignment we provide a simple logger-based implementation,
+// but the interface allows swapping in real providers later.
+type NotificationService interface {
+	BookingSuccess(ctx context.Context, b *entity.Booking) error
+	BookingTimeout(ctx context.Context, b *entity.Booking) error
 }
 
 func NewUseCase(
@@ -34,6 +43,7 @@ func NewUseCase(
 	seatLocker repository.SeatLocker,
 	publisher repository.EventPublisher,
 	hub *ws.Hub,
+	notifier NotificationService,
 ) *UseCase {
 	return &UseCase{
 		cinemaRepo:  cinemaRepo,
@@ -41,6 +51,7 @@ func NewUseCase(
 		seatLocker:  seatLocker,
 		publisher:   publisher,
 		hub:         hub,
+		notifier:    notifier,
 	}
 }
 
@@ -89,6 +100,11 @@ func (uc *UseCase) releaseExpired(ctx context.Context) {
 			CinemaID:  b.CinemaID,
 			Details:   fmt.Sprintf("seats %v released after timeout", b.SeatNumbers),
 		})
+
+		// Best-effort notification (mock / email / Line).
+		if uc.notifier != nil {
+			_ = uc.notifier.BookingTimeout(ctx, b)
+		}
 
 		uc.broadcastSeats(ctx, b.CinemaID.Hex())
 	}
@@ -217,6 +233,11 @@ func (uc *UseCase) ConfirmBooking(ctx context.Context, bookingID string, userID 
 		Details:   fmt.Sprintf("booking %s confirmed, seats %v", bookingID, booking.SeatNumbers),
 	})
 
+	// Best-effort notification (mock / email / Line).
+	if uc.notifier != nil {
+		_ = uc.notifier.BookingSuccess(ctx, booking)
+	}
+
 	uc.broadcastSeats(ctx, booking.CinemaID.Hex())
 	return booking, nil
 }
@@ -258,6 +279,17 @@ func (uc *UseCase) CancelBooking(ctx context.Context, bookingID string, userID s
 
 func (uc *UseCase) GetMyBookings(ctx context.Context, userID string) ([]*entity.Booking, error) {
 	return uc.bookingRepo.FindByUserID(ctx, userID)
+}
+
+// ListBookings returns all bookings with optional filters for admin use.
+func (uc *UseCase) ListBookings(ctx context.Context, in domainusecase.AdminListBookingsInput) (*repository.AdminBookingResult, error) {
+	return uc.bookingRepo.FindAll(ctx, repository.AdminBookingFilter{
+		Movie:  in.Movie,
+		Date:   in.Date,
+		Status: in.Status,
+		Page:   in.Page,
+		Limit:  in.Limit,
+	})
 }
 
 // broadcastSeats fetches the latest cinema and pushes its seat list to all WS clients.

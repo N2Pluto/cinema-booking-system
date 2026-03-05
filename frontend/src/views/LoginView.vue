@@ -28,6 +28,7 @@ function loginWithGoogle() {
         </svg>
       </div>
 
+
       <h1 class="text-3xl font-bold text-white tracking-tight mb-2">Cinema Booking</h1>
       <p class="text-[#a8b2d8] text-sm mb-9">จองตั๋วหนังออนไลน์ง่ายๆ ที่นี่ที่เดียว</p>
 

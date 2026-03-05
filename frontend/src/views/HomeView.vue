@@ -32,20 +32,29 @@ async function changePage(p: number) {
     <AppNavbar />
 
     <main class="max-w-[1100px] mx-auto px-6 py-10">
-      <!-- Admin shortcut -->
-      <div v-if="userReady && user?.is_admin" class="mb-6 flex gap-3">
-        <router-link
-          to="/admin/cinemas"
-          class="px-4 py-2 text-sm font-medium bg-[#e94560]/10 text-[#e94560] border border-[#e94560]/30 rounded-lg hover:bg-[#e94560]/20 transition-colors"
-        >
-          จัดการรอบหนัง
-        </router-link>
-        <router-link
-          to="/admin/audit-logs"
-          class="px-4 py-2 text-sm font-medium bg-white/5 text-[#a8b2d8] border border-white/10 rounded-lg hover:bg-white/10 transition-colors"
-        >
-          Audit Logs
-        </router-link>
+      <!-- Admin shortcuts -->
+      <div v-if="userReady && user?.is_admin" class="mb-8">
+        <p class="text-xs text-[#606882] font-medium uppercase tracking-widest mb-3">Admin</p>
+        <div class="flex gap-3 flex-wrap">
+          <router-link
+            to="/admin/bookings"
+            class="px-4 py-2 text-sm font-medium bg-[#e94560]/10 text-[#e94560] border border-[#e94560]/30 rounded-lg hover:bg-[#e94560]/20 transition-colors"
+          >
+            Booking Dashboard
+          </router-link>
+          <router-link
+            to="/admin/cinemas"
+            class="px-4 py-2 text-sm font-medium bg-white/5 text-[#a8b2d8] border border-white/10 rounded-lg hover:bg-white/10 transition-colors"
+          >
+            จัดการรอบหนัง
+          </router-link>
+          <router-link
+            to="/admin/audit-logs"
+            class="px-4 py-2 text-sm font-medium bg-white/5 text-[#a8b2d8] border border-white/10 rounded-lg hover:bg-white/10 transition-colors"
+          >
+            Audit Logs
+          </router-link>
+        </div>
       </div>      <div v-if="userReady && !user?.is_admin" class="flex items-center justify-between mb-6">
         <div>
           <h3 class="text-xl font-semibold mb-1">ภาพยนตร์ที่กำลังฉาย</h3>

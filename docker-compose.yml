@@ -5,11 +5,15 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
-    command: redis-server --appendonly yes
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    environment:
+      - REDIS_USERNAME=${REDIS_USERNAME}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
     volumes:
       - redis-data:/data
+      - ./redis/entrypoint.sh:/entrypoint.sh:ro
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-u", "redis://${REDIS_USERNAME}:${REDIS_PASSWORD}@localhost:6379", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
