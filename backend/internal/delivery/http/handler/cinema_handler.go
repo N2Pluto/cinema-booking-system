@@ -56,7 +56,7 @@ func (h *CinemaHandler) GetSeats(c *gin.Context) {
 	c.JSON(http.StatusOK, cinema)
 }
 
-// POST /api/admin/showtimes
+// POST /api/admin/cinema
 func (h *CinemaHandler) CreateShowtime(c *gin.Context) {
 	var body struct {
 		MovieName   string    `json:"movie_name"    binding:"required"`

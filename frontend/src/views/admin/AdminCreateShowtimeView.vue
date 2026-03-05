@@ -35,7 +35,7 @@ async function handleSubmit() {
       start_time: new Date(form.value.start_time).toISOString(),
       end_time: new Date(form.value.end_time).toISOString(),
     }
-    const res = await fetch(`${API_URL}/api/admin/showtimes`, {
+    const res = await fetch(`${API_URL}/api/admin/cinema`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

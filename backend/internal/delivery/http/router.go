@@ -86,7 +86,7 @@ func (ro *Router) Setup(r *gin.Engine) {
 	admin.Use(middleware.RequireRole(entity.RoleAdmin))
 	{
 		admin.GET("/cinema", ro.cinemaHandler.List)
-		admin.POST("/showtimes", ro.cinemaHandler.CreateShowtime)
+		admin.POST("/cinema", ro.cinemaHandler.CreateShowtime)
 		admin.GET("/audit-logs", ro.auditLogHandler.List)
 		admin.GET("/bookings", ro.bookingHandler.ListAll)
 	}

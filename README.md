@@ -286,7 +286,7 @@ User เลือกที่นั่ง
 | Method | Path | คำอธิบาย |
 |---|---|---|
 | GET | `/api/admin/cinema` | รายการรอบฉายทั้งหมด |
-| POST | `/api/admin/showtimes` | สร้างรอบฉายใหม่ |
+| POST | `/api/admin/cinema` | สร้างรอบฉายใหม่ |
 | GET | `/api/admin/bookings` | รายการจองทั้งหมด (filter by movie, date, status) |
 | GET | `/api/admin/audit-logs` | ดู Audit Logs |
 
