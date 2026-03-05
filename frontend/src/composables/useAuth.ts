@@ -5,7 +5,9 @@ const TOKEN_KEY = 'cinema_token'
 interface User {
   user_id: string
   email: string
+  display_name: string
   role: string
+  is_admin: boolean
 }
 
 const user = ref<User | null>(null)
@@ -28,7 +30,7 @@ export function useAuth() {
     if (!t) return null
 
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080'
-    const res = await fetch(`${apiUrl}/auth/me`, {
+    const res = await fetch(`${apiUrl}/api/me`, {
       headers: { Authorization: `Bearer ${t}` },
     })
 
@@ -37,8 +39,7 @@ export function useAuth() {
       return null
     }
 
-    const data = await res.json()
-    user.value = data.user_id ? data : data.user
+    user.value = await res.json()
     return user.value
   }
 

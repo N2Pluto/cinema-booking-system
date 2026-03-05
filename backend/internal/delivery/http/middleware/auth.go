@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/n2pluto/cinema-booking-system/internal/domain/entity"
 	jwtpkg "github.com/n2pluto/cinema-booking-system/pkg/jwt"
 )
 
@@ -21,7 +22,7 @@ func JWTAuth() gin.HandlerFunc {
 
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-			c.AbortWithStatusJSON(401, gin.H{"error": "invalid authorization format"})
+			c.AbortWithStatusJSON(401, gin.H{"error": "invalid authorization format, use: Bearer <token>"})
 			return
 		}
 
@@ -31,22 +32,25 @@ func JWTAuth() gin.HandlerFunc {
 			return
 		}
 
-		// inject claims เข้า context ให้ handler ใช้ได้
 		c.Set("user_id", claims.UserID)
 		c.Set("email", claims.Email)
 		c.Set("role", claims.Role)
-		c.Set("user", claims)
-
+		c.Set("display_name", claims.DisplayName)
 		c.Next()
 	}
 }
 
-// AdminOnly ใช้ต่อจาก JWTAuth — อนุญาตเฉพาะ role ADMIN
-func AdminOnly() gin.HandlerFunc {
+// RequireRole อนุญาตเฉพาะ role ที่ระบุ (ใช้ต่อจาก JWTAuth เสมอ)
+func RequireRole(roles ...entity.UserRole) gin.HandlerFunc {
+	allowed := make(map[string]bool, len(roles))
+	for _, r := range roles {
+		allowed[string(r)] = true
+	}
+
 	return func(c *gin.Context) {
-		role, _ := c.Get("role")
-		if role != "ADMIN" {
-			c.AbortWithStatusJSON(403, gin.H{"error": "forbidden"})
+		role := c.GetString("role")
+		if !allowed[role] {
+			c.AbortWithStatusJSON(403, gin.H{"error": "forbidden: insufficient role"})
 			return
 		}
 		c.Next()

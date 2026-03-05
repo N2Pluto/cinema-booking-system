@@ -45,15 +45,20 @@ func (r *userRepository) Upsert(ctx context.Context, user *entity.User) (*entity
 	now := time.Now()
 
 	filter := bson.M{"google_id": user.GoogleID}
+	role := user.Role
+	if role == "" {
+		role = entity.RoleUser
+	}
+
 	update := bson.M{
 		"$set": bson.M{
 			"email":        user.Email,
 			"display_name": user.DisplayName,
+			"role":         role,
 			"updated_at":   now,
 		},
 		"$setOnInsert": bson.M{
 			"google_id":  user.GoogleID,
-			"role":       entity.RoleUser,
 			"created_at": now,
 		},
 	}

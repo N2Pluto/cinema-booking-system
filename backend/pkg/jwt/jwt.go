@@ -9,20 +9,22 @@ import (
 )
 
 type Claims struct {
-	UserID string `json:"user_id"`
-	Email  string `json:"email"`
-	Role   string `json:"role"`
+	UserID      string `json:"user_id"`
+	Email       string `json:"email"`
+	Role        string `json:"role"`
+	DisplayName string `json:"display_name"`
 	jwt.RegisteredClaims
 }
 
-func Generate(userID, email, role string) (string, error) {
+func Generate(userID, email, role, displayName string) (string, error) {
 	secret := os.Getenv("JWT_SECRET")
 	ttl := 72 * time.Hour
 
 	claims := Claims{
-		UserID: userID,
-		Email:  email,
-		Role:   role,
+		UserID:      userID,
+		Email:       email,
+		Role:        role,
+		DisplayName: displayName,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(ttl)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

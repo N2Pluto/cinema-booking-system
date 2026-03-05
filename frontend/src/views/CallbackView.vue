@@ -20,35 +20,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="callback-page">
-    <div class="spinner"></div>
-    <p>กำลังเข้าสู่ระบบ...</p>
+  <div class="min-h-screen flex flex-col items-center justify-center gap-5 bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-[#a8b2d8]">
+    <div class="w-10 h-10 rounded-full border-3 border-white/10 border-t-[#e94560] animate-spin"></div>
+    <p class="text-base">กำลังเข้าสู่ระบบ...</p>
   </div>
 </template>
-
-<style scoped>
-.callback-page {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-  color: #a8b2d8;
-  font-size: 16px;
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid rgba(255,255,255,0.1);
-  border-top-color: #e94560;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-</style>
