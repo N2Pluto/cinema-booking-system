@@ -1,10 +1,31 @@
 # Cinema Booking System
 
-ระบบจองตั๋วหนังออนไลน์ รองรับ Real-time Seat Map, Distributed Lock, และป้องกัน Double Booking แบบ 100%
+ระบบจองตั๋วหนังออนไลน์ รองรับ Real-time Seat Map, Distributed Lock, และป้องกัน Double Booking
 
 ---
 
-## Tech Stack
+## System Architecture Diagram
+
+```
+[ Browser / Frontend (Vue 3) ]
+              │
+              ▼
+      [ Backend API (Go + Gin) ]
+          │        │         │
+          │        │         ├────────► [ Redis Pub-Sub ]
+          │        │                      │
+          │        │                      ▼
+          │        └────────► [ Redis (Cache + Distributed Lock) ]
+          │
+          └────────────────► [ MongoDB (Primary Data Store) ]
+
+Real-time:
+Browser ── WebSocket ──► Backend ── seat_update ──► Broadcast to all clients
+```
+
+---
+
+## Tech Stack Overview
 
 | Layer | Technology | หมายเหตุ |
 |---|---|---|
@@ -17,6 +38,34 @@
 | Message Queue | Redis Pub-Sub | Async Audit Logging |
 | Auth | Google OAuth 2.0 + JWT (HS256) | Role: USER / ADMIN |
 | Container | Docker + Docker Compose | รันด้วยคำสั่งเดียว |
+
+---
+
+## Booking Flow — Step by Step
+
+1. **Login**
+   - ผู้ใช้กดปุ่ม "Sign in with Google" ที่ frontend → redirect ไป Google OAuth
+   - Backend รับ callback, สร้าง/อัปเดต `User` แล้วออก JWT token ส่งกลับให้ frontend
+2. **Browse Cinemas**
+   - Frontend เรียก `GET /api/cinema` เพื่อดึกรอบฉาย (filter ตามวันที่ได้)
+   - เมื่อเลือกเรื่อง/รอบ ระบบจะโหลดสถานะที่นั่งด้วย `GET /api/seats/:cinemaId`
+3. **Subscribe Real-time Seat Map**
+   - Frontend เปิด WebSocket `GET /api/ws/seats/:cinemaId?token=<jwt>`
+   - เมื่อมีใครล็อก/จองที่นั่ง ระบบจะ broadcast `seat_update` ให้ทุก client ในห้องเดียวกัน
+4. **Lock Seats (Hold)**
+   - ผู้ใช้เลือกที่นั่ง → Frontend เรียก `POST /api/booking/lock`
+   - Backend พยายาม acquire Redis Lock สำหรับทุกที่นั่ง + อัปเดต MongoDB เป็น `LOCKED`
+   - ถ้าสำเร็จ: สร้าง booking สถานะ `PENDING` และ broadcast seat_update
+5. **Confirm Booking**
+   - ภายในเวลาที่กำหนด (เช่น 5 นาที) ผู้ใช้กดปุ่มยืนยัน → `POST /api/booking/confirm`
+   - Backend เปลี่ยนสถานะที่นั่งเป็น `BOOKED`, ปลด Redis Lock, อัปเดต booking เป็น `SUCCESS`
+6. **Timeout / Cancel**
+   - Background job ตรวจ booking ที่ `PENDING` เกิน TTL:
+     - ปลด Redis Lock, เปลี่ยนที่นั่งกลับเป็น `AVAILABLE`, ตั้ง booking เป็น `TIMEOUT`
+   - ผู้ใช้สามารถยกเลิกเองผ่าน `POST /api/booking/cancel` (เปลี่ยนเป็น `CANCELLED`)
+7. **Audit & Admin View**
+   - ทุก action สำคัญ (lock, confirm, timeout, cancel) จะถูก publish เป็น event ไป Redis Pub-Sub
+   - Consumer อ่าน event แล้วเขียน `AuditLog` ลง MongoDB → Admin ดูย้อนหลังได้ผ่านหน้า Admin
 
 ---
 
@@ -65,7 +114,7 @@ cinema-booking-system/
 
 ---
 
-## กลยุทธ์การ Lock — Distributed Lock Strategy
+## Redis Lock Strategy — Distributed Lock
 
 ### ปัญหา: Double Booking
 
@@ -274,7 +323,7 @@ User เลือกที่นั่ง
 
 ---
 
-## วิธีรัน
+## วิธีรันระบบ
 
 ### Prerequisites
 
@@ -310,6 +359,42 @@ go run cmd/seed/main.go
 ```
 
 สร้าง: `users` (3 คน), `cinemas` (6 รอบ), `bookings` (1 รายการ)
+
+---
+
+## Assumptions & Trade-offs
+
+- **MongoDB เป็น single primary database**
+  - เลือก MongoDB เพราะเหมาะกับ document ที่ฝังรายการที่นั่ง (`seats`) ใน `Cinema` ได้
+  - Trade-off: ถ้าขนาด seats โตมากขึ้นมาก ๆ อาจต้องแยก collection หรือ shard เพิ่ม
+- **Embedded seat document แทนการแยกเป็น collection ใหม่**
+  - ข้อดี: อ่านสถานะที่นั่งทั้งรอบได้ใน query เดียว, เขียนแบบ atomic ง่ายกว่า
+  - ข้อเสีย: ขนาด document โตตามจำนวนที่นั่ง, ต้องออกแบบ index ดี ๆ
+- **Redis ใช้ทั้งเป็น cache, lock และ message queue**
+  - ลดจำนวน dependency และทำงานได้ดีในระบบขนาดเล็ก-กลาง
+  - Trade-off: ถ้า traffic ใหญ่ขึ้นมาก อาจต้องแยก message broker จริงจัง (เช่น Kafka / RabbitMQ)
+- **Redis Lock TTL คงที่ (เช่น 300 วินาที)**
+  - สมมติว่า user ส่วนใหญ่ยืนยันการจองภายในเวลานี้
+  - ถ้า business ต้องการเวลานานขึ้น อาจต้องเพิ่ม mechanism สำหรับ extend lock แทนการ fixed TTL
+- **Audit Logging แบบ async**
+  - เลือกให้ booking path เร็วที่สุด แม้ audit จะล้มเหลว log บางส่วนอาจหายได้
+  - ถ้าต้องการ audit แบบ strong guarantee อาจต้องใช้ transactional outbox แทน Pub-Sub ตรง ๆ
+
+---
+
+
+## Optional Features (Extra Credit)
+
+- **Postman Collection**
+  - มีไฟล์ collection พร้อมใช้งานที่ `postman/cinema-booking.postman_collection.json`
+  - ตั้งค่า `base_url`, `jwt_token`, `admin_jwt_token` เป็น Postman variables แล้วสามารถยิง endpoint หลักได้ครบ (`/auth/*`, `/api/cinema`, `/api/seats/:cinemaId`, `/api/booking/*`, `/api/admin/*`)
+- **Simple Test Case**
+  - มี unit test สำหรับ `BookingUseCase` (happy-path lock + confirm) ที่ไฟล์ `backend/internal/usecase/booking/usecase_test.go`
+  - รันเทสต์ทั้งหมดของ backend ได้ด้วยคำสั่ง:
+    - `cd backend && go test ./...`
+- **Notification (Email / Line / Mock)**
+  - มี abstraction `NotificationService` ที่ถูก inject เข้า `BookingUseCase` และถูกเรียกหลัง booking `SUCCESS` และ `TIMEOUT`
+  - ปัจจุบันมี implementation แบบ mock คือ `LoggerNotificationService` ที่ log ข้อความแจ้งเตือน (ต่อยอดไปเป็น Email / Line Notify ได้ในอนาคต)
 
 ---
 

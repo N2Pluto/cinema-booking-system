@@ -1,0 +1,207 @@
+{
+  "info": {
+    "name": "Cinema Booking System",
+    "_postman_id": "00000000-0000-0000-0000-000000000000",
+    "description": "Postman collection for Cinema Booking System (auth, booking, admin).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/health"
+      }
+    },
+    {
+      "name": "Auth - Google Callback (Mock)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/auth/google/callback?code={{google_mock_code}}"
+      }
+    },
+    {
+      "name": "Me",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          }
+        ],
+        "url": "{{base_url}}/api/me"
+      }
+    },
+    {
+      "name": "List Cinemas",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          }
+        ],
+        "url": "{{base_url}}/api/cinema"
+      }
+    },
+    {
+      "name": "Get Seats by Cinema",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/seats/{{cinema_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "seats", "{{cinema_id}}"]
+        }
+      }
+    },
+    {
+      "name": "Booking - Lock Seats",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cinema_id\": \"{{cinema_id}}\",\n  \"seat_numbers\": [\"A1\", \"A2\"]\n}"
+        },
+        "url": "{{base_url}}/api/booking/lock"
+      }
+    },
+    {
+      "name": "Booking - Confirm",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"booking_id\": \"{{booking_id}}\"\n}"
+        },
+        "url": "{{base_url}}/api/booking/confirm"
+      }
+    },
+    {
+      "name": "Booking - Cancel",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"booking_id\": \"{{booking_id}}\"\n}"
+        },
+        "url": "{{base_url}}/api/booking/cancel"
+      }
+    },
+    {
+      "name": "Booking - My Bookings",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          }
+        ],
+        "url": "{{base_url}}/api/booking/me"
+      }
+    },
+    {
+      "name": "Admin - List Bookings",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_jwt_token}}",
+            "type": "text"
+          }
+        ],
+        "url": "{{base_url}}/api/admin/bookings"
+      }
+    },
+    {
+      "name": "Admin - List Audit Logs",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_jwt_token}}",
+            "type": "text"
+          }
+        ],
+        "url": "{{base_url}}/api/admin/audit-logs"
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "jwt_token",
+      "value": ""
+    },
+    {
+      "key": "admin_jwt_token",
+      "value": ""
+    },
+    {
+      "key": "cinema_id",
+      "value": ""
+    },
+    {
+      "key": "booking_id",
+      "value": ""
+    },
+    {
+      "key": "google_mock_code",
+      "value": ""
+    }
+  ]
+}
+

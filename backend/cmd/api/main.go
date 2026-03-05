@@ -76,7 +76,8 @@ func main() {
 		os.Getenv("GOOGLE_CALLBACK_URL"),
 	)
 	cinemaUC := cinemausecase.NewUseCase(cinemaRepo)
-	bookingUC := bookingusecase.NewUseCase(cinemaRepo, bookingRepo, seatLocker, publisher, hub)
+	bookingNotifier := bookingusecase.LoggerNotificationService{}
+	bookingUC := bookingusecase.NewUseCase(cinemaRepo, bookingRepo, seatLocker, publisher, hub, bookingNotifier)
 	auditUC := auditlogusecase.NewUseCase(auditRepo)
 
 	// Start background seat-lock timeout ticker
